@@ -1,0 +1,62 @@
+name: DevSecOps Security Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  security-events: write
+  id-token: write
+
+jobs:
+
+  security-scan:
+
+    name: Security Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+
+    # Checkout Source Code
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+
+    # Secret Scanning using Gitleaks
+    - name: Gitleaks Secret Scan
+      uses: gitleaks/gitleaks-action@v2
+      with:
+        args: detect --verbose
+
+
+    # Static Application Security Testing using Semgrep
+    - name: Semgrep SAST Scan
+      uses: semgrep/semgrep-action@v1
+      with:
+        config: >
+          p/security-audit
+          p/python
+
+
+    # Dependency Vulnerability Scanning using Trivy
+    - name: Trivy Dependency Scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: fs
+        scan-ref: .
+        severity: CRITICAL,HIGH
+        format: sarif
+        output: trivy-results.sarif
+        exit-code: 1
+
+
+    # Upload Trivy SARIF Report to GitHub Security Tab
+    - name: Upload Trivy SARIF Report
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: trivy-results.sarif
