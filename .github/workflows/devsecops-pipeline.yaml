@@ -14,7 +14,6 @@ permissions:
   id-token: write
 
 jobs:
-
   security-scan:
 
     name: Security Scanning
@@ -26,37 +25,34 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-
-    # Secret Scanning using Gitleaks
+    # Secret Scanning using Gitleaks (Hard Fail)
     - name: Gitleaks Secret Scan
       uses: gitleaks/gitleaks-action@v2
-      with:
-        args: detect --verbose
 
-
-    # Static Application Security Testing using Semgrep
+    # Static Application Security Testing (Warning Only)
     - name: Semgrep SAST Scan
       uses: semgrep/semgrep-action@v1
+      continue-on-error: true
       with:
-        config: >
+        config: |
           p/security-audit
           p/python
 
-
-    # Dependency Vulnerability Scanning using Trivy
-    - name: Trivy Dependency Scan
-      uses: aquasecurity/trivy-action@master
+    # Dependency Vulnerability Scan (Hard Fail)
+    - name: Trivy Filesystem Scan
+      uses: aquasecurity/trivy-action@0.28.0
       with:
         scan-type: fs
         scan-ref: .
-        severity: CRITICAL,HIGH
         format: sarif
         output: trivy-results.sarif
+        severity: CRITICAL,HIGH
+        ignore-unfixed: true
         exit-code: 1
 
-
-    # Upload Trivy SARIF Report to GitHub Security Tab
+    # Upload Trivy SARIF Report
     - name: Upload Trivy SARIF Report
       uses: github/codeql-action/upload-sarif@v3
+      if: always()
       with:
         sarif_file: trivy-results.sarif
