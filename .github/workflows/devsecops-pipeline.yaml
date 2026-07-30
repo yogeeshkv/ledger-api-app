@@ -15,44 +15,43 @@ permissions:
 
 jobs:
   security-scan:
-
     name: Security Scanning
     runs-on: ubuntu-latest
 
     steps:
 
-    # Checkout Source Code
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      # Checkout Source Code
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    # Secret Scanning using Gitleaks (Hard Fail)
-    - name: Gitleaks Secret Scan
-      uses: gitleaks/gitleaks-action@v2
+      # Secret Scanning using Gitleaks (Hard Fail)
+      - name: Gitleaks Secret Scan
+        uses: gitleaks/gitleaks-action@v2
 
-    # Static Application Security Testing (Warning Only)
-    - name: Semgrep SAST Scan
-      uses: semgrep/semgrep-action@v1
-      continue-on-error: true
-      with:
-        config: |
-          p/security-audit
-          p/python
+      # Static Application Security Testing (Warning Only)
+      - name: Semgrep SAST Scan
+        uses: semgrep/semgrep-action@v1
+        continue-on-error: true
+        with:
+          config: |
+            p/security-audit
+            p/python
 
-    # Dependency Vulnerability Scan (Hard Fail)
-    - name: Trivy Filesystem Scan
-      uses: aquasecurity/trivy-action@0.28.0
-      with:
-        scan-type: fs
-        scan-ref: .
-        format: sarif
-        output: trivy-results.sarif
-        severity: CRITICAL,HIGH
-        ignore-unfixed: true
-        exit-code: 1
+      # Dependency Vulnerability Scan (Hard Fail)
+      - name: Trivy Filesystem Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: 1
 
-    # Upload Trivy SARIF Report
-    - name: Upload Trivy SARIF Report
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: trivy-results.sarif
+      # Upload Trivy SARIF Report
+      - name: Upload Trivy SARIF Report
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
