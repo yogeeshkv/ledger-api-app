@@ -16,7 +16,6 @@ permissions:
 
 jobs:
   security-scan:
-
     name: DevSecOps Pipeline
     runs-on: ubuntu-latest
 
@@ -26,11 +25,15 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # -----------------------------
       # Secret Scan
+      # -----------------------------
       - name: Gitleaks Secret Scan
         uses: gitleaks/gitleaks-action@v2
 
-      # SAST Scan
+      # -----------------------------
+      # Static Application Security Testing
+      # -----------------------------
       - name: Semgrep SAST Scan
         uses: semgrep/semgrep-action@v1
         continue-on-error: true
@@ -39,27 +42,33 @@ jobs:
             p/security-audit
             p/python
 
+      # -----------------------------
       # Filesystem Vulnerability Scan
+      # -----------------------------
       - name: Trivy Filesystem Scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
           scan-ref: .
           scanners: vuln
-          format: sarif
-          output: trivy-results.sarif
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          format: sarif
+          output: trivy-results.sarif
           exit-code: 0
 
-      # Upload Trivy SARIF Report
-      - name: Upload Trivy SARIF Report
+      # -----------------------------
+      # Upload Filesystem SARIF
+      # -----------------------------
+      - name: Upload Trivy Filesystem SARIF
         if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results.sarif
 
+      # -----------------------------
       # Login to GitHub Container Registry
+      # -----------------------------
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -67,13 +76,39 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # -----------------------------
       # Build Docker Image
+      # -----------------------------
       - name: Build Docker Image
         run: |
           docker build \
             -t ghcr.io/${{ github.repository_owner }}/ledger-api-app:latest .
 
+      # -----------------------------
       # Push Docker Image
+      # -----------------------------
       - name: Push Docker Image
         run: |
           docker push ghcr.io/${{ github.repository_owner }}/ledger-api-app:latest
+
+      # -----------------------------
+      # Trivy Image Vulnerability Scan
+      # -----------------------------
+      - name: Trivy Image Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/ledger-api-app:latest
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-image-results.sarif
+          exit-code: 0
+
+      # -----------------------------
+      # Upload Image SARIF
+      # -----------------------------
+      - name: Upload Trivy Image SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-image-results.sarif
